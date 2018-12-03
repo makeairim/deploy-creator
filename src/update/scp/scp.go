@@ -13,6 +13,10 @@ import (
 	"path"
 )
 
+/*
+ File struct and read method
+ https://gowalker.org/github.com/deoxxa/scp
+ */
 // File is a file being read from or written to a remote host. It implements the
 // io.Reader and os.FileInfo interfaces, with the io.Reader portion delegated
 // through to a bufio.Reader in the case that this is a file being read from a
@@ -206,20 +210,18 @@ func CopyLocalToRemote(c *sshConnection.Client, localFile, remoteFile string) {
 		panic("Canot open local file" + err.Error())
 	}
 	defer file.Close()
-	err = copyFromFile(c, *file, remoteFile, "0777")
+	err = copy(c, *file, remoteFile, "0777")
 }
 
-//Copies the contents of an os.File to a remote location, it will get the length of the file by looking it up from the filesystem
-func copyFromFile(c *sshConnection.Client, file os.File, remotePath string, permissions string) error {
-	stat, _ := file.Stat()
-	return copy(c, &file, remotePath, permissions, stat.Size())
-}
 
 // Copies the contents of an io.Reader to a remote location
-func copy(a *sshConnection.Client, r io.Reader, remotePath string, permissions string, size int64) error {
+func copy(a *sshConnection.Client, file os.File, remotePath string, permissions string) error {
+	stat, _ := file.Stat()
+
+	size := stat.Size()
 	filename := path.Base(remotePath)
 	directory := path.Dir(remotePath)
-
+	r := io.Reader(&file)
 	go func() {
 		w, _ := a.Session.StdinPipe()
 		defer w.Close()
