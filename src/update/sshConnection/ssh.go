@@ -1,5 +1,7 @@
 package sshConnection
-
+/*
+Author Bartosz Wołcerz
+ */
 import (
 	"os/user"
 	"io/ioutil"

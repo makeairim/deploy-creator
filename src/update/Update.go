@@ -1,5 +1,9 @@
 package main
 
+
+/*
+Author Bartosz Wołcerz
+ */
 import (
 	"./scp"
 	"./sshConnection"
