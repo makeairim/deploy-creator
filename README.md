@@ -2,7 +2,7 @@
 connect to remote host and create deploy
 
 go ver 1.11.2
-
+go build Update.go
 Required:
 go get -u golang.org/x/crypto/...
 
