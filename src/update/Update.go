@@ -31,27 +31,27 @@ func main() {
 
 	copyFromRemote(&client, getValue(parameters, "remote-db-log-file-path"))
 	dropLocalDbLogTable(parameters)
-	localDbLogTableRestore(parameters, getLocalTmpDir()+getValue(parameters, "remote-db-log-file-path"))
+	localDbLogTableRestore(parameters, getLocalTmpDir(parameters)+getValue(parameters, "remote-db-log-file-path"))
 	localPullProject(parameters)
 
 	projectWorkingDir := getValue(parameters, "local-project-dir") + getProjectDir(getValue(parameters, "repo-url"))
 
 	getDbChangesSql(projectWorkingDir, liquibaseCMD)
 	dropLocalDbLogTable(parameters)
-	localDbLogTableRestore(parameters, getLocalTmpDir()+getValue(parameters, "local-db-log-file-path"))
+	localDbLogTableRestore(parameters, getLocalTmpDir(parameters)+getValue(parameters, "local-db-log-file-path"))
 	buildEAR(projectWorkingDir)
 
 	deploymentDir := "deploy_v" + parameters["version"] + "_" + getValue(parameters, "file-timestamp")
 	prepareDeploymentPackage(projectWorkingDir,
-		getLocalTmpDir()+deploymentDir,
-		getLocalTmpDir()+getValue(parameters, "sql-file"),
+		getLocalTmpDir(parameters)+deploymentDir,
+		getLocalTmpDir(parameters)+getValue(parameters, "sql-file"),
 		getValue(parameters, "src-root"))
-	copyToRemote(&client, getLocalTmpDir(), deploymentDir+".tar.gz")
+	copyToRemote(&client, getLocalTmpDir(parameters), deploymentDir+".tar.gz")
 	clean([]string{
-		getLocalTmpDir() + deploymentDir + ".tar.gz",
-		getLocalTmpDir() + getValue(parameters, "sql-file"),
-		getLocalTmpDir() + getValue(parameters, "local-db-log-file-path"),
-		getLocalTmpDir() + getValue(parameters, "remote-db-log-file-path"),
+		getLocalTmpDir(parameters) + deploymentDir + ".tar.gz",
+		getLocalTmpDir(parameters) + getValue(parameters, "sql-file"),
+		getLocalTmpDir(parameters) + getValue(parameters, "local-db-log-file-path"),
+		getLocalTmpDir(parameters) + getValue(parameters, "remote-db-log-file-path"),
 	})
 }
 
@@ -95,7 +95,7 @@ func remoteDbLogTableDump(conn sshConnection.ConnectionInt, parameters map[strin
 
 func localDbLogFileBackup(parameters map[string]string) {
 	fmt.Println("local db table backup ...")
-	dumpFile := getLocalTmpDir() + getValue(parameters, "local-db-log-file-path")
+	dumpFile := getLocalTmpDir(parameters) + getValue(parameters, "local-db-log-file-path")
 	user := getValue(parameters, "local-db-user")
 	password := getValue(parameters, "local-db-password")
 	dbName := getValue(parameters, "local-db-name")
@@ -255,6 +255,7 @@ func removeDirectory(dir string) {
 }
 func parseArg() map[string]string {
 	ver := flag.String("version", "no-ver", "deployment version")
+	dir := flag.String("dir", "", "Override default store path")
 	//remote conf
 	remoteAddress := flag.String("remote-addr", "127.0.0.1", "remote host ip")
 	remotePort := flag.String("remote-port", "22", "remote host port")
@@ -291,6 +292,7 @@ func parseArg() map[string]string {
 
 	return map[string]string{
 		"version":                   *ver,
+		"dir":                       *dir,
 		"git-login":                 *gitLogin,
 		"git-password":              *gitPassword,
 		"repo-url":                  *repoUrl,
@@ -316,7 +318,7 @@ func parseArg() map[string]string {
 		"local-db-port":     *localDbPort,
 		"sql-context":       *context,
 		"use-key":           *usekey,
-		"src-root":           *srcRoot,
+		"src-root":          *srcRoot,
 
 		"git-branch": *gitBranch,
 	}
@@ -343,7 +345,7 @@ func copyFromRemote(client *sshConnection.Client, remoteFile string) {
 	if err != nil {
 		panic("Transfer file failure" + err.Error())
 	}
-	err = saveFile(localFile, getLocalTmpDir()+remoteFile)
+	err = saveFile(localFile, getLocalTmpDir(parameters)+remoteFile)
 	if err != nil {
 		panic("Transfer file failure" + err.Error())
 	}
@@ -368,16 +370,18 @@ func clean(localFiles []string) {
 func getRemoteTmpDir() string {
 	return "/tmp/"
 }
-func getLocalTmpDir() string {
-	//return os.TempDir()
-	return "C:/tmp/"
+func getLocalTmpDir(parameters map[string]string) string {
+	if parameters["dir"] != "" {
+		return parameters["dir"]
+	}
+	return os.TempDir() + "/"
 }
 func prepareFileNames(parameters map[string]string) {
 	dateTimeFormat := "2120061545"
 	fileTimestamp := time.Now().Format(dateTimeFormat)
 	remoteDbLogFileName := "remote_changelog" + fileTimestamp + ".sql"
 	localDbLogFileName := "local_changelog" + fileTimestamp + ".sql"
-	localProjectDir := getLocalTmpDir() + fileTimestamp
+	localProjectDir := getLocalTmpDir(parameters) + fileTimestamp
 	sqlFile := "UPDATE_" + fileTimestamp + ".sql"
 
 	parameters["remote-db-log-file-path"] = remoteDbLogFileName
@@ -399,7 +403,7 @@ func createLiquibaseCmd(parameters map[string]string) []string {
 	dbUrl := getValue(parameters, "local-db-url")
 	dbPort := getValue(parameters, "local-db-port")
 	context := getValue(parameters, "sql-context")
-	sqlFile := getLocalTmpDir() + getValue(parameters, "sql-file")
+	sqlFile := getLocalTmpDir(parameters) + getValue(parameters, "sql-file")
 	return []string{
 		"-jar", liquiJar,
 		"--driver=org.postgresql.Driver",
